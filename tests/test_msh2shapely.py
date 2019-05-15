@@ -1,5 +1,5 @@
+from pathlib import Path
 from pytest import fixture
-
 from msh2shapely import elements2multilinestring
 
 
@@ -26,3 +26,7 @@ def msh_example():
 
 def test_elements2multilinestring(msh_example):
     assert elements2multilinestring(msh_example)
+
+def test_box():
+    box_msh = Path('box.msh').read_text()
+    assert elements2multilinestring(box_msh)

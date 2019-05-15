@@ -11,6 +11,35 @@ MshObj = TypeVar("MshObj")
 T = TypeVar("T")
 
 
+def iter_sections(lines: Iterable[str]) -> Iterator[List]:
+    """Iterate .msh sections in the form of: nodes, [elements[, boundaries]]"""
+
+    i_sections = iter_nodes_elements_boundaries(lines)
+
+    # yield nodes
+    try:
+        yield next(i_sections)
+    except StopIteration:
+        raise MshError("file missing nodes section")
+    # yield elements
+    try:
+        s = next(i_sections)
+    except StopIteration:
+        yield []
+    else:
+        yield s
+
+        # yield boundaries
+        try:
+            s = next(i_sections)
+        except StopIteration:
+            yield []
+        except Exception as e:
+            raise e
+        else:
+            yield s
+
+
 def iter_nodes_elements_boundaries(lines: Iterable[str]) -> Iterator[List]:
     """Iterator of .msh sections, as a list of items."""
 
@@ -19,10 +48,16 @@ def iter_nodes_elements_boundaries(lines: Iterable[str]) -> Iterator[List]:
 
 
 def iter_items(lines: Iterable[str], parser: LineParser[T]) -> Iterator[T]:
-    """Iterator of items from a .msh section. First line is the number of items to be iterated."""
+    """Iterator of items from a .msh section. First line is the number of items to be iterated.
+
+    Returns None if a section is empty."""
 
     i_lines = iter(lines)
-    n_items = next(iter_parsed(i_lines, parse_total))
+
+    try:
+        n_items = next(iter_parsed(i_lines, parse_total))
+    except StopIteration:
+        return
 
     for _, parsed in zip(range(n_items), iter_parsed(i_lines, parser)):
         yield parsed
@@ -86,7 +121,7 @@ class MshParser(Generic[MshObj]):
         # skip commented or blank lines and strip whitespace
         i_lines = (line for line in (line.strip() for line in lines) if line and not line.startswith("#"))
 
-        nodes, elements, boundaries = iter_nodes_elements_boundaries(i_lines)
+        nodes, elements, boundaries = iter_sections(i_lines)
 
         # check for leftover non-empty lines
         i: Optional[int] = None
